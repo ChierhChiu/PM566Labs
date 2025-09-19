@@ -1,0 +1,122 @@
+---
+title: "Lab3:EDA"
+author: Chi-Erh Chiu
+format: html
+embed-resources: true
+---
+
+## Step 1
+
+```{r}
+met <- read.csv("met_all.gz")
+```
+
+## Step 2
+
+```{r}
+dim(met)
+head(met)
+tail(met)
+```
+
+## Step 3
+
+```{r}
+str(met)
+```
+
+## Step 4
+
+```{r}
+table(met$year)
+table(met$day)
+table(met$hour)
+summary(met$temp)
+summary(met$elev)
+summary(met$wind.sp)
+```
+
+```{r}
+met$elev[met$elev == 9999.0] <- NA
+summary(met$elev)
+```
+
+```{r}
+met <- met[met$temp > -40, ]
+```
+
+The dataset covers only the year 2019, with consistent coverage across days and hours. Some values (–40°C for temp, 9999 for elevation) were invalid and cleaned. After cleaning, the minimum elevation is –13 m and maximum is 4113 m, which is plausible.
+
+## Step 5
+
+```{r}
+met <- met[met$temp > -15, ]
+summary(met$temp)
+```
+
+removed extreme negative temperatures (≤ –15°C) that were likely erroneous. After filtering, the minimum observed temp is –3°C.
+
+## Step 6
+
+```{r}
+elev <- met[met$elev == max(met$elev, na.rm = TRUE), ]
+summary(elev)
+
+# Correlations
+cor(elev$temp, elev$wind.sp, use="complete")
+cor(elev$temp, elev$hour, use="complete")
+cor(elev$wind.sp, elev$day, use="complete")
+cor(elev$wind.sp, elev$hour, use="complete")
+cor(elev$temp, elev$day, use="complete")
+
+```
+
+```{r}
+hist(met$elev, breaks=100)
+```
+
+```{r}
+hist(met$temp)
+```
+
+```{r}
+hist(met$wind.sp)
+```
+
+## Step 7
+
+```{r}
+library(leaflet)
+library(lubridate)
+```
+
+```{r}
+leaflet(elev) %>%
+  addProviderTiles('OpenStreetMap') %>% 
+  addCircles(lat=~lat,lng=~lon, opacity=1, fillOpacity=1, radius=100)
+```
+
+## Step 8
+
+```{r}
+elev$date <- with(elev, ymd_h(paste(year, month, day, hour, sep= ' ')))
+summary(elev$date)
+elev <- elev[order(elev$date), ] 
+head(elev)
+```
+
+```{r}
+# par(mfrow=c(2,1))
+plot(elev$date, elev$temp, type='l')
+plot(elev$date, elev$wind.sp, type='l')
+```
+
+```{r}
+#install.packages("corrplot")
+library(corrplot)
+cor_matrix <- cor(met[, c("temp", "wind.sp", "elev", "atm.press", "rh", 
+                          "dew.point")], use="complete.obs")
+corrplot(cor_matrix, method="color", type="upper", 
+         title="Correlation Matrix of Weather Variables", 
+         mar=c(0,0,1,0))
+```
