@@ -1,0 +1,95 @@
+---
+title: "Lab 7"
+author: Chi-Erh Chiu
+format: html
+embed-resources: true
+---
+
+### Step up 
+
+```{r}
+library(xml2)
+```
+
+### Question 1
+
+```{r}
+website <- xml2::read_html("https://pubmed.ncbi.nlm.nih.gov/?term=sars-cov-2")
+counts <- xml2::xml_find_first(website, "/html/body/main/div[9]/div[2]/div[2]/div[1]/div[1]/h3/span")
+counts <- as.character(counts)
+totalcount <- stringr::str_extract(counts, "[0-9,.]+")
+totalcount <- gsub("[,\\.]", "", totalcount)
+totalcount <- as.numeric(totalcount)
+print(totalcount)
+```
+
+### Question 2
+
+```{r}
+abstracts <- readLines('~/Downloads/abstract-sars-cov-2-set.txt', warn = FALSE)
+abstracts <- paste(abstracts, collapse = '\n')
+abstracts <- unlist(strsplit(abstracts, split = '\n\n\n'))
+abstracts <- gsub("\n", " ", abstracts)
+abstracts <- gsub(" +", " ", abstracts)
+```
+
+### Question 3
+
+```{r}
+library(stringr)
+institution <- str_extract_all(
+  abstracts,
+  "(University of \\w+|\\w+ University|\\w+ Institute of \\w+)"
+  ) 
+institution <- unlist(institution)
+institution_table <- table(institution)
+sorted_table <- sort(institution_table, decreasing = TRUE)
+print("--- Top 10 Most Common Institutions ---")
+print(head(sorted_table, 10))
+```
+
+The results can be improved in two ways:
+
+1\) change to capture the full names of institutions: because currently the regular expression is too simple and is it capturing incomplete names like "University of Southern" (missing "California") and "Hopkins University" (missing "Johns"). It also picks up generic terms like "The University.
+
+2\) convert all the extracted names to lowercase to correctly group these entries together: the list is case-sensitive and we are counting "The University" and "the University" as separate items.
+
+### Question 4
+
+```{r}
+abstracts <- readLines('~/Downloads/abstract-sars-cov-2-set.txt', warn = FALSE)
+abstracts <- paste(abstracts, collapse = '\n')
+abstracts <- unlist(strsplit(abstracts, split = '\n\n\n'))
+```
+
+```{r}
+journal_matches <- str_match(abstracts, "^\\d+\\.\\s(.*?\\.)")
+journal <- journal_matches[, 2]
+```
+
+```{r}
+titles <- sapply(abstracts, function(x){
+  unlist(strsplit(x, split = "\n\n"))[2]
+}, USE.NAMES = FALSE)
+```
+
+```{r}
+authors <- sapply(abstracts, function(x){
+  unlist(strsplit(x, split = "\n\n"))[3]
+}, USE.NAMES = FALSE)
+
+```
+
+```{r}
+affiliations <- str_extract(abstracts, "(?s)(?<=\n\nAuthor information:)(.*?)(?=\n\n)")
+```
+
+```{r}
+papers <- data.frame(
+  journal = journal,
+  title = titles,
+  authors = authors,
+  affiliations = affiliations
+)
+knitr::kable(papers[1:5, ])
+```
