@@ -1,0 +1,125 @@
+---
+title: "Lab 8"
+author: Chi-Erh Chiu
+format: html
+embed-resources: true
+---
+
+### Set up
+
+```{r}
+library(microbenchmark)
+
+```
+
+### Question 1
+
+```{r}
+fun1 <- function(n = 100, k = 4, lambda = 4) {
+  x <- NULL
+  
+  for (i in 1:n){
+    x <- rbind(x, rpois(k, lambda))    
+  }
+  
+  return(x)
+}
+
+fun1alt <- function(n = 100, k = 4, lambda = 4) {
+  matrix(rpois(n * k, lambda), nrow = n, ncol = k)
+}
+```
+
+```{r}
+set.seed(1)
+m1 <- fun1()
+
+set.seed(1)
+m1_alt <- fun1alt()
+
+# Check dimensions
+print(paste("Dimensions of fun1:", dim(m1)))
+print(paste("Dimensions of fun1alt:", dim(m1_alt)))
+
+# Check if distributions are similar 
+summary(as.vector(m1))
+summary(as.vector(m1_alt))
+```
+
+```{r}
+# Benchmarking
+microbenchmark::microbenchmark(
+  fun1(),
+  fun1alt()
+)
+```
+
+### Question 2
+
+```{r}
+set.seed(1234)
+x <- matrix(rnorm(1e4), nrow=10)
+
+fun2 <- function(x) {
+  apply(x, 2, max)
+}
+
+fun2alt <- function(x) {
+  row_indices <- max.col(t(x))
+  col_indices <- 1:ncol(x)
+  x[cbind(row_indices, col_indices)]
+}
+```
+
+```{r}
+all.equal(fun2(x), fun2alt(x))
+```
+
+```{r}
+# Benchmarking
+microbenchmark::microbenchmark(
+  fun2(x),
+  fun2alt(x)
+)
+```
+
+### Question 3
+
+```{r}
+library(parallel)
+
+my_boot <- function(dat, stat, R, ncpus = 1L) {
+  n <- nrow(dat)
+  idx <- matrix(sample.int(n, n * R, TRUE), nrow = n, ncol = R)
+  ans <- parallel::mclapply(seq_len(R), function(i) {
+    stat(dat[idx[, i], , drop = FALSE])
+  }, mc.cores = ncpus)
+  ans <- do.call(rbind, ans)
+  return(ans)
+}
+```
+
+```{r}
+my_stat <- function(d) coef(lm(y ~ x, data = d))
+
+set.seed(1)
+n <- 500
+R <- 1e4 
+x <- cbind(rnorm(n))
+y <- x * 5 + rnorm(n)
+
+ans0 <- confint(lm(y ~ x))
+
+ans1 <- my_boot(dat = data.frame(x, y), my_stat, R = R, ncpus = 2L)
+
+print("Bootstrap 95% CI:")
+t(apply(ans1, 2, quantile, c(.025, .975)))
+
+print("Parametric (lm) 95% CI:")
+ans0
+```
+
+```{r}
+system.time(my_boot(dat = data.frame(x, y), my_stat, R = 4000, ncpus = 1L))
+system.time(my_boot(dat = data.frame(x, y), my_stat, R = 4000, ncpus = 2L))
+```
